@@ -31,13 +31,24 @@ def compare(subset, superset):
 class UptimeKumaTestCase(unittest.TestCase):
     api = None
     url = "http://127.0.0.1:3001"
+    ssl_verify = False
     username = "admin"
     password = "secret123"
+    databaseConfig = {
+        "type": "sqlite",
+        "dbName": "kuma",
+        "hostname": "",
+        "username": "",
+        "password": "",
+        "port": 3306,
+        "ssl": False,
+        "ca": ""
+    }
 
     def setUp(self):
         warnings.simplefilter("ignore", ResourceWarning)
 
-        self.api = UptimeKumaApi(self.url, timeout=1, wait_events=0.01)
+        self.api = UptimeKumaApi(self.url, timeout=1, wait_events=0.01, ssl_verify=self.ssl_verify, db_setup=self.databaseConfig)
 
         global token
         if not token:
@@ -90,7 +101,7 @@ class UptimeKumaTestCase(unittest.TestCase):
 
         # login again to receive initial messages
         self.api.disconnect()
-        self.api = UptimeKumaApi(self.url)
+        self.api = UptimeKumaApi(self.url, ssl_verify=self.ssl_verify, db_setup=self.databaseConfig)
         self.api.login_by_token(token)
 
     def tearDown(self):

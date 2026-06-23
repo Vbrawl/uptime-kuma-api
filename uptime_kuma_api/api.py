@@ -25,6 +25,7 @@ from . import (
     ProxyProtocol,
     Timeout,
     UptimeKumaException,
+    UptimeKumaNoDatabase,
     notification_provider_conditions,
     notification_provider_options
 )
@@ -463,12 +464,14 @@ class UptimeKumaApi(object):
             timeout: float = 10,
             headers: dict = None,
             ssl_verify: bool = True,
-            wait_events: float = 0.2
+            wait_events: float = 0.2,
+            db_setup: dict|None = None
     ) -> None:
         self.url = url.rstrip("/")
         self.timeout = timeout
         self.headers = headers
         self.wait_events = wait_events
+        self.ssl_verify = ssl_verify
         self.sio = socketio.Client(ssl_verify=ssl_verify)
 
         self._event_data: dict = {
@@ -507,6 +510,17 @@ class UptimeKumaApi(object):
         self.sio.on(Event.MAINTENANCE_LIST, self._event_maintenance_list)
         self.sio.on(Event.API_KEY_LIST, self._event_api_key_list)
 
+        r = requests.get(f"{self.url}/setup-database-info", verify=self.ssl_verify)
+        data = r.json()
+        if data["needSetup"]:
+            if db_setup is None:
+                raise UptimeKumaNoDatabase()
+            requests.post(f"{self.url}/setup-database", verify=self.ssl_verify, json={"dbConfig": db_setup})
+        
+        while data["needSetup"] or data["runningSetup"]:
+            time.sleep(1)
+            r = requests.get(f"{self.url}/setup-database-info", verify=self.ssl_verify)
+            data = r.json()
         self.connect()
 
     def __enter__(self):
@@ -2762,7 +2776,7 @@ class UptimeKumaApi(object):
         :param str, optional chromeExecutable: Chrome/Chromium Executable, defaults to ""
         :param list, optional tlsExpiryNotifyDays: TLS Certificate Expiry. HTTPS Monitors trigger notification when TLS certificate expires in., defaults to None
         :param bool, optional disableAuth: Disable Authentication, defaults to False
-        :param bool, optional trustProxy: Trust Proxy. Trust 'X-Forwarded-\*' headers. If you want to get the correct client IP and your Uptime Kuma is behind such as Nginx or Apache, you should enable this., defaults to False
+        :param bool, optional trustProxy: Trust Proxy. Trust 'X-Forwarded-*' headers. If you want to get the correct client IP and your Uptime Kuma is behind such as Nginx or Apache, you should enable this., defaults to False
         :return: The server response.
         :rtype: dict
         :raises UptimeKumaException: If the server returns an error.
