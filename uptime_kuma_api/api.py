@@ -511,7 +511,11 @@ class UptimeKumaApi(object):
         self.sio.on(Event.API_KEY_LIST, self._event_api_key_list)
 
         r = requests.get(f"{self.url}/setup-database-info", verify=self.ssl_verify)
-        data = r.json()
+        try:
+            data = r.json()
+        except Exception:
+            data = {"needSetup": False, "runningSetup": False}
+
         if data["needSetup"]:
             if db_setup is None:
                 raise UptimeKumaNoDatabase()
